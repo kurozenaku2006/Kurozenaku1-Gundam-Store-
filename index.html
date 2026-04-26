@@ -68,7 +68,6 @@ Close
 
 <button @click="addToCart(p)" class="bg-yellow-400 text-black w-full mt-2 py-1">Cart</button>
 <button @click="toggleWish(p)" class="w-full mt-1">❤️</button>
-<button @click="buyNow()" class="bg-white text-black w-full mt-2 py-1">Buy</button>
 
 </div>
 </template>
@@ -92,6 +91,11 @@ Close
 </template>
 
 <p>Total: ₹<span x-text="total()"></span></p>
+
+<button @click="checkout()"
+class="bg-green-500 w-full mt-4 py-2 rounded">
+Checkout
+</button>
 </div>
 
 <!-- WISHLIST -->
@@ -134,11 +138,10 @@ Add Product
 </button>
 </div>
 
-<!-- OVERLAY -->
+<!-- MENU -->
 <div x-show="menuOpen" @click="menuOpen=false"
 class="fixed inset-0 bg-black/60 z-40"></div>
 
-<!-- MENU DRAWER -->
 <div x-show="menuOpen"
 class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-950 z-50 p-5">
 
@@ -154,12 +157,9 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </button>
 
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
-
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
-
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
-<!-- USER SECTION -->
 <div class="mt-6 border-t border-white/20 pt-4">
 
 <div x-show="!user">
@@ -215,7 +215,6 @@ this.loadProducts();
 },
 
 initFirebase(){
-try{
 firebase.initializeApp({
 apiKey: "AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
 authDomain: "kurozenaku-gundam-store.firebaseapp.com",
@@ -226,23 +225,13 @@ firebase.auth().onAuthStateChanged(u=>{
 this.user = u;
 this.isAdmin = u && u.email === "vedantbhalge2006@gmail.com";
 });
-}catch(e){
-console.log("Firebase init error");
-}
 },
 
 loadProducts(){
-try{
 const db = firebase.firestore();
-
 db.collection("products").onSnapshot(s=>{
 this.products = s.docs.map(d=>({id:d.id,...d.data()}));
 });
-}catch(e){
-this.products = [
-{id:1,name:"HG Gundam",price:2000,image:"https://via.placeholder.com/150",category:"HG"}
-];
-}
 },
 
 login(){
@@ -255,17 +244,12 @@ firebase.auth().signOut();
 },
 
 addProduct(){
-if(!this.name || !this.price) return alert("Fill all fields");
-
 firebase.firestore().collection("products").add({
 name:this.name,
 price:Number(this.price),
 category:this.newCategory,
 image:"https://via.placeholder.com/150"
 });
-
-this.name='';
-this.price='';
 },
 
 filteredProducts(){
@@ -295,8 +279,61 @@ this.view=v;
 this.menuOpen=false;
 },
 
-buyNow(){
-alert("Buy working");
+// 💳 CHECKOUT
+async checkout(){
+try{
+if(!this.user) return alert("Login first");
+if(this.cart.length===0) return alert("Cart empty");
+
+const token = await this.user.getIdToken();
+
+const orderRes = await fetch("http://localhost:5000/create-order",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+body:JSON.stringify({
+amount:this.total(),
+items:this.cart
+})
+});
+
+const order = await orderRes.json();
+
+const rzp = new Razorpay({
+key:"rzp_test_SenYF5dCaOG8Ab",
+amount:order.amount,
+currency:"INR",
+order_id:order.id,
+
+handler:async (response)=>{
+const verifyRes = await fetch("http://localhost:5000/verify",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+body:JSON.stringify(response)
+});
+
+const result = await verifyRes.json();
+
+if(result.success){
+alert("Payment Success");
+this.cart=[];
+}else{
+alert("Verification failed");
+}
+}
+});
+
+rzp.open();
+
+}catch(e){
+console.log(e);
+alert("Checkout failed");
+}
 }
 
 }
