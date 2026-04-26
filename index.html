@@ -92,10 +92,12 @@ Close
 
 <p>Total: ₹<span x-text="total()"></span></p>
 
+<!-- ✅ CHECKOUT BUTTON -->
 <button @click="checkout()"
 class="bg-green-500 w-full mt-4 py-2 rounded">
 Checkout
 </button>
+
 </div>
 
 <!-- WISHLIST -->
@@ -157,7 +159,9 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </button>
 
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
+
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
+
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
 <div class="mt-6 border-t border-white/20 pt-4">
@@ -209,6 +213,8 @@ name:'',
 price:'',
 newCategory:'HG',
 
+ API_URL: "https://kurozenaku-gundam-store.onrender.com",
+
 init(){
 this.initFirebase();
 this.loadProducts();
@@ -216,27 +222,25 @@ this.loadProducts();
 
 initFirebase(){
 firebase.initializeApp({
-apiKey: "AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
-authDomain: "kurozenaku-gundam-store.firebaseapp.com",
-projectId: "kurozenaku-gundam-store"
+apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
+authDomain:"kurozenaku-gundam-store.firebaseapp.com",
+projectId:"kurozenaku-gundam-store"
 });
 
 firebase.auth().onAuthStateChanged(u=>{
-this.user = u;
-this.isAdmin = u && u.email === "vedantbhalge2006@gmail.com";
+this.user=u;
+this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
 });
 },
 
 loadProducts(){
-const db = firebase.firestore();
-db.collection("products").onSnapshot(s=>{
-this.products = s.docs.map(d=>({id:d.id,...d.data()}));
+firebase.firestore().collection("products").onSnapshot(s=>{
+this.products=s.docs.map(d=>({id:d.id,...d.data()}));
 });
 },
 
 login(){
-const provider = new firebase.auth.GoogleAuthProvider();
-firebase.auth().signInWithPopup(provider);
+firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
 },
 
 logout(){
@@ -279,15 +283,15 @@ this.view=v;
 this.menuOpen=false;
 },
 
-// 💳 CHECKOUT
 async checkout(){
 try{
+
 if(!this.user) return alert("Login first");
 if(this.cart.length===0) return alert("Cart empty");
 
-const token = await this.user.getIdToken();
+const token=await this.user.getIdToken();
 
-const orderRes = await fetch("http://localhost:5000/create-order",{
+const orderRes=await fetch(this.API_URL+"/create-order",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
@@ -299,16 +303,21 @@ items:this.cart
 })
 });
 
-const order = await orderRes.json();
+if(!orderRes.ok){
+const txt=await orderRes.text();
+throw new Error(txt);
+}
 
-const rzp = new Razorpay({
+const order=await orderRes.json();
+
+const rzp=new Razorpay({
 key:"rzp_test_SenYF5dCaOG8Ab",
 amount:order.amount,
 currency:"INR",
 order_id:order.id,
 
 handler:async (response)=>{
-const verifyRes = await fetch("http://localhost:5000/verify",{
+const verifyRes=await fetch(this.API_URL+"/verify",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
@@ -317,7 +326,7 @@ headers:{
 body:JSON.stringify(response)
 });
 
-const result = await verifyRes.json();
+const result=await verifyRes.json();
 
 if(result.success){
 alert("Payment Success");
@@ -331,8 +340,8 @@ alert("Verification failed");
 rzp.open();
 
 }catch(e){
-console.log(e);
-alert("Checkout failed");
+console.error(e);
+alert("ERROR: "+e.message);
 }
 }
 
