@@ -8,17 +8,17 @@ const admin = require("firebase-admin");
 const app = express();
 app.use(express.json());
 
-// ✅ CORS (ONLY your frontend allowed)
+/* ==============================
+   ✅ FIXED CORS (IMPORTANT)
+   ============================== */
 app.use(cors({
-  origin: [
-    "http://localhost:5500",
-    "https://kurozenaku-gundam-store.onrender.com"
-  ],
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: true,
+  credentials: true
 }));
 
-// 🔥 Firebase Admin Setup
+/* ==============================
+   🔥 FIREBASE ADMIN
+   ============================== */
 const serviceAccount = require("./serviceAccountKey.json");
 
 admin.initializeApp({
@@ -27,9 +27,9 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// ==============================
-// 🔐 AUTH MIDDLEWARE
-// ==============================
+/* ==============================
+   🔐 AUTH MIDDLEWARE
+   ============================== */
 async function verifyToken(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -49,17 +49,17 @@ async function verifyToken(req, res, next) {
   }
 }
 
-// ==============================
-// 💳 RAZORPAY SETUP
-// ==============================
+/* ==============================
+   💳 RAZORPAY SETUP
+   ============================== */
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-// ==============================
-// 🧾 CREATE ORDER
-// ==============================
+/* ==============================
+   🧾 CREATE ORDER
+   ============================== */
 app.post("/create-order", verifyToken, async (req, res) => {
   try {
     const { amount, items } = req.body;
@@ -69,14 +69,14 @@ app.post("/create-order", verifyToken, async (req, res) => {
     }
 
     const options = {
-      amount: amount * 100, // ₹ → paise
+      amount: amount * 100,
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     };
 
     const order = await razorpay.orders.create(options);
 
-    // Save order to Firestore
+    // Save order
     await db.collection("orders").doc(order.id).set({
       userId: req.user.uid,
       items,
@@ -86,15 +86,16 @@ app.post("/create-order", verifyToken, async (req, res) => {
     });
 
     res.json(order);
+
   } catch (err) {
     console.error("Create Order Error:", err);
     res.status(500).send("Error creating order");
   }
 });
 
-// ==============================
-// ✅ VERIFY PAYMENT
-// ==============================
+/* ==============================
+   ✅ VERIFY PAYMENT
+   ============================== */
 app.post("/verify", verifyToken, async (req, res) => {
   try {
     const {
@@ -116,7 +117,7 @@ app.post("/verify", verifyToken, async (req, res) => {
       return res.status(400).send("Invalid signature");
     }
 
-    // Update order status
+    // Update order
     await db.collection("orders").doc(razorpay_order_id).update({
       status: "PAID",
       paymentId: razorpay_payment_id,
@@ -124,22 +125,23 @@ app.post("/verify", verifyToken, async (req, res) => {
     });
 
     res.json({ success: true });
+
   } catch (err) {
     console.error("Verification Error:", err);
     res.status(500).send("Verification failed");
   }
 });
 
-// ==============================
-// 🧪 HEALTH CHECK (optional)
-// ==============================
+/* ==============================
+   🧪 HEALTH CHECK
+   ============================== */
 app.get("/", (req, res) => {
   res.send("Backend running");
 });
 
-// ==============================
-// 🚀 START SERVER
-// ==============================
+/* ==============================
+   🚀 START SERVER
+   ============================== */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
