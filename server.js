@@ -9,17 +9,25 @@ const app = express();
 app.use(express.json());
 
 /* ==============================
-   ✅ FIXED CORS (IMPORTANT)
+   ✅ FINAL CORS FIX
    ============================== */
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: "*",
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 /* ==============================
-   🔥 FIREBASE ADMIN
+   🔥 FIREBASE ADMIN (ENV BASED)
    ============================== */
-const serviceAccount = require("./serviceAccountKey.json");
+let serviceAccount;
+
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+} catch (e) {
+  console.error("❌ FIREBASE_KEY missing or invalid");
+  process.exit(1);
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -69,14 +77,14 @@ app.post("/create-order", verifyToken, async (req, res) => {
     }
 
     const options = {
-      amount: amount * 100,
+      amount: amount * 100, // ₹ → paise
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     };
 
     const order = await razorpay.orders.create(options);
 
-    // Save order
+    // Save order in Firestore
     await db.collection("orders").doc(order.id).set({
       userId: req.user.uid,
       items,
@@ -117,7 +125,7 @@ app.post("/verify", verifyToken, async (req, res) => {
       return res.status(400).send("Invalid signature");
     }
 
-    // Update order
+    // Update order in Firestore
     await db.collection("orders").doc(razorpay_order_id).update({
       status: "PAID",
       paymentId: razorpay_payment_id,
@@ -144,5 +152,5 @@ app.get("/", (req, res) => {
    ============================== */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("✅ Server running on port", PORT);
 });
