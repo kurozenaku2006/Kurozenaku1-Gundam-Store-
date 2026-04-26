@@ -17,7 +17,8 @@
 
 <body class="bg-gradient-to-b from-black via-gray-900 to-black text-white min-h-screen">
 
-<div x-data="app()" class="p-6 max-w-7xl mx-auto">
+<!-- 🔥 FIXED ALPINE INIT -->
+<div x-data="app" x-init="init()" class="p-6 max-w-7xl mx-auto">
 
 <!-- HEADER -->
 <div class="flex justify-between items-center mb-6">
@@ -92,12 +93,9 @@ Close
 
 <p>Total: ₹<span x-text="total()"></span></p>
 
-<!-- ✅ CHECKOUT BUTTON -->
-<button @click="checkout()"
-class="bg-green-500 w-full mt-4 py-2 rounded">
+<button @click="checkout()" class="bg-green-500 w-full mt-4 py-2 rounded">
 Checkout
 </button>
-
 </div>
 
 <!-- WISHLIST -->
@@ -134,8 +132,7 @@ class="text-black p-2 w-full mb-2">
 <option>SD</option>
 </select>
 
-<button @click="addProduct()"
-class="bg-blue-500 px-4 py-2 w-full">
+<button @click="addProduct()" class="bg-blue-500 px-4 py-2 w-full">
 Add Product
 </button>
 </div>
@@ -159,9 +156,7 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </button>
 
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
-
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
-
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
 <div class="mt-6 border-t border-white/20 pt-4">
@@ -186,13 +181,12 @@ class="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500">
 </div>
 
 </div>
-
 </div>
 
 </div>
 
 <script>
-window.app = function () {
+function app() {
 return {
 
 menuOpen:false,
@@ -213,8 +207,8 @@ name:'',
 price:'',
 newCategory:'HG',
 
- API_URL: "https://kurozenaku-gundam-store.onrender.com",
-
+API_URL: "https://kurozenaku-gundam-store.onrender.com",
+ 
 init(){
 this.initFirebase();
 this.loadProducts();
@@ -286,6 +280,8 @@ this.menuOpen=false;
 async checkout(){
 try{
 
+console.log("Checkout clicked");
+
 if(!this.user) return alert("Login first");
 if(this.cart.length===0) return alert("Cart empty");
 
@@ -310,7 +306,7 @@ throw new Error(txt);
 
 const order=await orderRes.json();
 
-const rzp=new Razorpay({
+new Razorpay({
 key:"rzp_test_SenYF5dCaOG8Ab",
 amount:order.amount,
 currency:"INR",
@@ -335,9 +331,7 @@ this.cart=[];
 alert("Verification failed");
 }
 }
-});
-
-rzp.open();
+}).open();
 
 }catch(e){
 console.error(e);
