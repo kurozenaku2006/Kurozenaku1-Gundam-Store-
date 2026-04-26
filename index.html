@@ -17,25 +17,18 @@
 
 <body class="bg-gradient-to-b from-black via-gray-900 to-black text-white min-h-screen">
 
-<!-- ✅ FIXED INIT -->
 <div x-data="app()" x-init="init()" class="p-6 max-w-7xl mx-auto">
 
 <!-- HEADER -->
 <div class="flex justify-between items-center mb-6">
 <h1 class="text-3xl font-bold">KUROZENAKU</h1>
-
-<button @click="menuOpen=true" class="bg-white/10 px-3 py-2 rounded">
-☰ Menu
-</button>
+<button @click="menuOpen=true" class="bg-white/10 px-3 py-2 rounded">☰ Menu</button>
 </div>
 
 <!-- SEARCH + FILTER -->
 <div class="flex gap-2 mb-4">
 <button @click="filterOpen=true" class="bg-white/10 px-3 rounded">☰</button>
-
-<input x-model="search"
-placeholder="Search Gundam kits..."
-class="flex-1 p-2 text-black rounded"/>
+<input x-model="search" placeholder="Search Gundam kits..." class="flex-1 p-2 text-black rounded"/>
 </div>
 
 <!-- FILTER DRAWER -->
@@ -54,22 +47,18 @@ x-text="c"></button>
 class="mt-4 w-full bg-red-500 py-2 rounded">
 Close
 </button>
-
 </div>
 
 <!-- PRODUCTS -->
 <div x-show="view==='shop'" class="grid grid-cols-2 md:grid-cols-4 gap-4">
 <template x-for="p in filteredProducts()" :key="p.id">
 <div class="bg-white/10 p-3 rounded">
-
 <img :src="p.image" class="h-40 w-full object-contain">
-
 <h2 x-text="p.name"></h2>
 <p>₹<span x-text="p.price"></span></p>
 
 <button @click="addToCart(p)" class="bg-yellow-400 text-black w-full mt-2 py-1">Cart</button>
 <button @click="toggleWish(p)" class="w-full mt-1">❤️</button>
-
 </div>
 </template>
 </div>
@@ -81,21 +70,17 @@ Close
 <template x-for="item in cart">
 <div class="flex justify-between border-b py-2">
 <span x-text="item.name"></span>
-
 <div>
 <button @click="item.qty++">+</button>
 <span x-text="item.qty"></span>
 <button @click="item.qty--">-</button>
 </div>
-
 </div>
 </template>
 
 <p>Total: ₹<span x-text="total()"></span></p>
 
-<!-- ✅ CHECKOUT BUTTON -->
-<button @click="checkout()"
-class="bg-green-500 w-full mt-4 py-2 rounded">
+<button @click="checkout()" class="bg-green-500 w-full mt-4 py-2 rounded">
 Checkout
 </button>
 </div>
@@ -119,11 +104,8 @@ Checkout
 <div x-show="view==='admin'" class="bg-white/10 p-4 rounded">
 <h2 class="text-xl mb-4">Admin Panel</h2>
 
-<input x-model="name" placeholder="Product Name"
-class="text-black p-2 w-full mb-2">
-
-<input x-model="price" placeholder="Price"
-class="text-black p-2 w-full mb-2">
+<input x-model="name" placeholder="Product Name" class="text-black p-2 w-full mb-2">
+<input x-model="price" placeholder="Price" class="text-black p-2 w-full mb-2">
 
 <select x-model="newCategory" class="text-black p-2 w-full mb-2">
 <option>HG</option>
@@ -134,16 +116,16 @@ class="text-black p-2 w-full mb-2">
 <option>SD</option>
 </select>
 
-<button @click="addProduct()"
-class="bg-blue-500 px-4 py-2 w-full">
+<button @click="addProduct()" class="bg-blue-500 px-4 py-2 w-full">
 Add Product
 </button>
 </div>
 
-<!-- MENU -->
+<!-- MENU OVERLAY -->
 <div x-show="menuOpen" @click="menuOpen=false"
 class="fixed inset-0 bg-black/60 z-40"></div>
 
+<!-- MENU DRAWER -->
 <div x-show="menuOpen"
 class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-950 z-50 p-5">
 
@@ -159,9 +141,7 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </button>
 
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
-
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
-
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
 <div class="mt-6 border-t border-white/20 pt-4">
@@ -186,161 +166,154 @@ class="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500">
 </div>
 
 </div>
-
 </div>
 
 </div>
 
 <script>
 document.addEventListener('alpine:init', () => {
-  Alpine.data('app', () => ({
+Alpine.data('app', () => ({
 
-    menuOpen:false,
-    filterOpen:false,
-    view:'shop',
+menuOpen:false,
+filterOpen:false,
+view:'shop',
 
-    products:[],
-    cart:[],
-    wishlist:[],
+products:[],
+cart:[],
+wishlist:[],
 
-    search:'',
-    category:'ALL',
+search:'',
+category:'ALL',
 
-    user:null,
-    isAdmin:false,
+user:null,
+isAdmin:false,
 
-    name:'',
-    price:'',
-    newCategory:'HG',
+name:'',
+price:'',
+newCategory:'HG',
 
-    API_URL:"https://kurozenaku-gundam-store.onrender.com",
+API_URL:"https://kurozenaku-gundam-store.onrender.com",
 
-    init(){
-      console.log("Alpine initialized ✅");
+init(){
+firebase.initializeApp({
+apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
+authDomain:"kurozenaku-gundam-store.firebaseapp.com",
+projectId:"kurozenaku-gundam-store"
+});
 
-      firebase.initializeApp({
-        apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
-        authDomain:"kurozenaku-gundam-store.firebaseapp.com",
-        projectId:"kurozenaku-gundam-store"
-      });
+firebase.auth().onAuthStateChanged(u=>{
+this.user=u;
+this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
+});
 
-      firebase.auth().onAuthStateChanged(u=>{
-        this.user=u;
-        this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
-      });
+firebase.firestore().collection("products").onSnapshot(s=>{
+this.products=s.docs.map(d=>({id:d.id,...d.data()}));
+});
+},
 
-      firebase.firestore().collection("products").onSnapshot(s=>{
-        this.products=s.docs.map(d=>({id:d.id,...d.data()}));
-      });
-    },
+login(){
+firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+},
 
-    login(){
-      firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    },
+logout(){
+firebase.auth().signOut();
+},
 
-    logout(){
-      firebase.auth().signOut();
-    },
+addProduct(){
+firebase.firestore().collection("products").add({
+name:this.name,
+price:Number(this.price),
+category:this.newCategory,
+image:"https://via.placeholder.com/150"
+});
+},
 
-    addProduct(){
-      firebase.firestore().collection("products").add({
-        name:this.name,
-        price:Number(this.price),
-        category:this.newCategory,
-        image:"https://via.placeholder.com/150"
-      });
-    },
+filteredProducts(){
+return this.products.filter(p=>
+(p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
+(this.category==='ALL'||p.category===this.category)
+);
+},
 
-    filteredProducts(){
-      return this.products.filter(p=>
-        (p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
-        (this.category==='ALL'||p.category===this.category)
-      );
-    },
+addToCart(p){
+let i=this.cart.find(x=>x.id===p.id);
+if(i)i.qty++; else this.cart.push({...p,qty:1});
+},
 
-    addToCart(p){
-      let i=this.cart.find(x=>x.id===p.id);
-      if(i)i.qty++; else this.cart.push({...p,qty:1});
-    },
+total(){
+return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
+},
 
-    total(){
-      return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
-    },
+toggleWish(p){
+let w=this.wishlist.find(x=>x.id===p.id);
+if(w)this.wishlist=this.wishlist.filter(x=>x.id!==p.id);
+else this.wishlist.push(p);
+},
 
-    toggleWish(p){
-      let w=this.wishlist.find(x=>x.id===p.id);
-      if(w)this.wishlist=this.wishlist.filter(x=>x.id!==p.id);
-      else this.wishlist.push(p);
-    },
+go(v){
+this.view=v;
+this.menuOpen=false;
+},
 
-    go(v){
-      this.view=v;
-      this.menuOpen=false;
-    },
+// 🔥 DEBUG CHECKOUT
+async checkout(){
+try{
 
-    async checkout(){
-      try{
+alert("Step 0: Clicked");
 
-        console.log("Checkout clicked");
+if(!this.user){ alert("Login first"); return; }
+if(this.cart.length===0){ alert("Cart empty"); return; }
 
-        if(!this.user) return alert("Login first");
-        if(this.cart.length===0) return alert("Cart empty");
+const token = await this.user.getIdToken();
+alert("Step 1: Token OK");
 
-        const token=await this.user.getIdToken();
+let orderRes;
 
-        const orderRes=await fetch(this.API_URL+"/create-order",{
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            "Authorization":"Bearer "+token
-          },
-          body:JSON.stringify({
-            amount:this.total(),
-            items:this.cart
-          })
-        });
+try{
+orderRes = await fetch(this.API_URL+"/create-order",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+body:JSON.stringify({
+amount:this.total(),
+items:this.cart
+})
+});
+alert("Step 2: Request sent");
+}catch(err){
+alert("FETCH FAILED ❌");
+return;
+}
 
-        if(!orderRes.ok){
-          const txt=await orderRes.text();
-          throw new Error(txt);
-        }
+if(!orderRes.ok){
+const txt = await orderRes.text();
+alert("SERVER ERROR ❌: "+txt);
+return;
+}
 
-        const order=await orderRes.json();
+alert("Step 3: Order created");
 
-        new Razorpay({
-          key:"rzp_test_SenYF5dCaOG8Ab",
-          amount:order.amount,
-          currency:"INR",
-          order_id:order.id,
+const order = await orderRes.json();
 
-          handler:async (response)=>{
-            const verifyRes=await fetch(this.API_URL+"/verify",{
-              method:"POST",
-              headers:{
-                "Content-Type":"application/json",
-                "Authorization":"Bearer "+token
-              },
-              body:JSON.stringify(response)
-            });
+new Razorpay({
+key:"rzp_test_SenYF5dCaOG8Ab",
+amount:order.amount,
+currency:"INR",
+order_id:order.id,
 
-            const result=await verifyRes.json();
+handler:function(){
+alert("Payment success");
+}
+}).open();
 
-            if(result.success){
-              alert("Payment Success 🎉");
-              this.cart=[];
-            }else{
-              alert("Verification failed");
-            }
-          }
-        }).open();
+}catch(e){
+alert("FINAL ERROR ❌");
+}
+}
 
-      }catch(e){
-        console.error(e);
-        alert("ERROR: "+e.message);
-      }
-    }
-
-  }))
+}))
 })
 </script>
 
