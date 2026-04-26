@@ -17,8 +17,8 @@
 
 <body class="bg-gradient-to-b from-black via-gray-900 to-black text-white min-h-screen">
 
-<!-- 🔥 FIXED ALPINE INIT -->
-<div x-data="app" x-init="init()" class="p-6 max-w-7xl mx-auto">
+<!-- ✅ FIXED INIT -->
+<div x-data="app()" x-init="init()" class="p-6 max-w-7xl mx-auto">
 
 <!-- HEADER -->
 <div class="flex justify-between items-center mb-6">
@@ -93,7 +93,9 @@ Close
 
 <p>Total: ₹<span x-text="total()"></span></p>
 
-<button @click="checkout()" class="bg-green-500 w-full mt-4 py-2 rounded">
+<!-- ✅ CHECKOUT BUTTON -->
+<button @click="checkout()"
+class="bg-green-500 w-full mt-4 py-2 rounded">
 Checkout
 </button>
 </div>
@@ -132,7 +134,8 @@ class="text-black p-2 w-full mb-2">
 <option>SD</option>
 </select>
 
-<button @click="addProduct()" class="bg-blue-500 px-4 py-2 w-full">
+<button @click="addProduct()"
+class="bg-blue-500 px-4 py-2 w-full">
 Add Product
 </button>
 </div>
@@ -156,7 +159,9 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </button>
 
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
+
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
+
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
 <div class="mt-6 border-t border-white/20 pt-4">
@@ -181,166 +186,162 @@ class="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500">
 </div>
 
 </div>
+
 </div>
 
 </div>
 
 <script>
-function app() {
-return {
+document.addEventListener('alpine:init', () => {
+  Alpine.data('app', () => ({
 
-menuOpen:false,
-filterOpen:false,
-view:'shop',
+    menuOpen:false,
+    filterOpen:false,
+    view:'shop',
 
-products:[],
-cart:[],
-wishlist:[],
+    products:[],
+    cart:[],
+    wishlist:[],
 
-search:'',
-category:'ALL',
+    search:'',
+    category:'ALL',
 
-user:null,
-isAdmin:false,
+    user:null,
+    isAdmin:false,
 
-name:'',
-price:'',
-newCategory:'HG',
+    name:'',
+    price:'',
+    newCategory:'HG',
 
-API_URL: "https://kurozenaku-gundam-store.onrender.com",
- 
-init(){
-this.initFirebase();
-this.loadProducts();
-},
+    API_URL:"https://kurozenaku-gundam-store.onrender.com",
 
-initFirebase(){
-firebase.initializeApp({
-apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
-authDomain:"kurozenaku-gundam-store.firebaseapp.com",
-projectId:"kurozenaku-gundam-store"
-});
+    init(){
+      console.log("Alpine initialized ✅");
 
-firebase.auth().onAuthStateChanged(u=>{
-this.user=u;
-this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
-});
-},
+      firebase.initializeApp({
+        apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
+        authDomain:"kurozenaku-gundam-store.firebaseapp.com",
+        projectId:"kurozenaku-gundam-store"
+      });
 
-loadProducts(){
-firebase.firestore().collection("products").onSnapshot(s=>{
-this.products=s.docs.map(d=>({id:d.id,...d.data()}));
-});
-},
+      firebase.auth().onAuthStateChanged(u=>{
+        this.user=u;
+        this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
+      });
 
-login(){
-firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
-},
+      firebase.firestore().collection("products").onSnapshot(s=>{
+        this.products=s.docs.map(d=>({id:d.id,...d.data()}));
+      });
+    },
 
-logout(){
-firebase.auth().signOut();
-},
+    login(){
+      firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    },
 
-addProduct(){
-firebase.firestore().collection("products").add({
-name:this.name,
-price:Number(this.price),
-category:this.newCategory,
-image:"https://via.placeholder.com/150"
-});
-},
+    logout(){
+      firebase.auth().signOut();
+    },
 
-filteredProducts(){
-return this.products.filter(p=>
-(p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
-(this.category==='ALL'||p.category===this.category)
-);
-},
+    addProduct(){
+      firebase.firestore().collection("products").add({
+        name:this.name,
+        price:Number(this.price),
+        category:this.newCategory,
+        image:"https://via.placeholder.com/150"
+      });
+    },
 
-addToCart(p){
-let i=this.cart.find(x=>x.id===p.id);
-if(i)i.qty++; else this.cart.push({...p,qty:1});
-},
+    filteredProducts(){
+      return this.products.filter(p=>
+        (p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
+        (this.category==='ALL'||p.category===this.category)
+      );
+    },
 
-total(){
-return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
-},
+    addToCart(p){
+      let i=this.cart.find(x=>x.id===p.id);
+      if(i)i.qty++; else this.cart.push({...p,qty:1});
+    },
 
-toggleWish(p){
-let w=this.wishlist.find(x=>x.id===p.id);
-if(w)this.wishlist=this.wishlist.filter(x=>x.id!==p.id);
-else this.wishlist.push(p);
-},
+    total(){
+      return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
+    },
 
-go(v){
-this.view=v;
-this.menuOpen=false;
-},
+    toggleWish(p){
+      let w=this.wishlist.find(x=>x.id===p.id);
+      if(w)this.wishlist=this.wishlist.filter(x=>x.id!==p.id);
+      else this.wishlist.push(p);
+    },
 
-async checkout(){
-try{
+    go(v){
+      this.view=v;
+      this.menuOpen=false;
+    },
 
-console.log("Checkout clicked");
+    async checkout(){
+      try{
 
-if(!this.user) return alert("Login first");
-if(this.cart.length===0) return alert("Cart empty");
+        console.log("Checkout clicked");
 
-const token=await this.user.getIdToken();
+        if(!this.user) return alert("Login first");
+        if(this.cart.length===0) return alert("Cart empty");
 
-const orderRes=await fetch(this.API_URL+"/create-order",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+token
-},
-body:JSON.stringify({
-amount:this.total(),
-items:this.cart
+        const token=await this.user.getIdToken();
+
+        const orderRes=await fetch(this.API_URL+"/create-order",{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+          },
+          body:JSON.stringify({
+            amount:this.total(),
+            items:this.cart
+          })
+        });
+
+        if(!orderRes.ok){
+          const txt=await orderRes.text();
+          throw new Error(txt);
+        }
+
+        const order=await orderRes.json();
+
+        new Razorpay({
+          key:"rzp_test_SenYF5dCaOG8Ab",
+          amount:order.amount,
+          currency:"INR",
+          order_id:order.id,
+
+          handler:async (response)=>{
+            const verifyRes=await fetch(this.API_URL+"/verify",{
+              method:"POST",
+              headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer "+token
+              },
+              body:JSON.stringify(response)
+            });
+
+            const result=await verifyRes.json();
+
+            if(result.success){
+              alert("Payment Success 🎉");
+              this.cart=[];
+            }else{
+              alert("Verification failed");
+            }
+          }
+        }).open();
+
+      }catch(e){
+        console.error(e);
+        alert("ERROR: "+e.message);
+      }
+    }
+
+  }))
 })
-});
-
-if(!orderRes.ok){
-const txt=await orderRes.text();
-throw new Error(txt);
-}
-
-const order=await orderRes.json();
-
-new Razorpay({
-key:"rzp_test_SenYF5dCaOG8Ab",
-amount:order.amount,
-currency:"INR",
-order_id:order.id,
-
-handler:async (response)=>{
-const verifyRes=await fetch(this.API_URL+"/verify",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+token
-},
-body:JSON.stringify(response)
-});
-
-const result=await verifyRes.json();
-
-if(result.success){
-alert("Payment Success");
-this.cart=[];
-}else{
-alert("Verification failed");
-}
-}
-}).open();
-
-}catch(e){
-console.error(e);
-alert("ERROR: "+e.message);
-}
-}
-
-}
-}
 </script>
 
 </body>
