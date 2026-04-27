@@ -123,11 +123,7 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </div>
 
 <button @click="go('shop')" class="w-full mb-2 bg-white/10 py-2 rounded">🛍 Shop</button>
-
-<button @click="go('cart')" class="w-full mb-2 bg-white/10 py-2 rounded">
-🛒 Cart (<span x-text="cart.length"></span>)
-</button>
-
+<button @click="go('cart')" class="w-full mb-2 bg-white/10 py-2 rounded">🛒 Cart (<span x-text="cart.length"></span>)</button>
 <button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
 <button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
@@ -142,7 +138,6 @@ Login with Google
 
 <div x-show="user">
 <p class="text-sm mb-2" x-text="user.email"></p>
-
 <button @click="logout()" class="w-full bg-red-500 py-2 rounded mb-2">
 Logout
 </button>
@@ -170,7 +165,6 @@ search:'',
 category:'ALL',
 
 user:null,
-isAdmin:false,
 
 API_URL:"https://kurozenaku-gundam-store.onrender.com",
 
@@ -183,7 +177,6 @@ projectId:"kurozenaku-gundam-store"
 
 firebase.auth().onAuthStateChanged(async u=>{
 this.user=u;
-this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
 if(u) await this.loadOrders();
 });
 
@@ -201,6 +194,8 @@ firebase.auth().signOut();
 },
 
 async loadOrders(){
+if(!this.user) return;
+
 const snapshot = await firebase.firestore()
 .collection("orders")
 .where("userId","==",this.user.uid)
@@ -247,7 +242,10 @@ if(this.cart.length===0){ alert("Cart empty"); return; }
 const token = await this.user.getIdToken();
 alert("Step 1");
 
-const orderRes = await fetch(this.API_URL+"/create-order",{
+let orderRes;
+
+try{
+orderRes = await fetch(this.API_URL+"/create-order",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
@@ -258,13 +256,16 @@ amount:this.total(),
 items:this.cart
 })
 });
-
 alert("Step 2");
+}catch(err){
+alert("BACKEND NOT REACHABLE ❌");
+console.error(err);
+return;
+}
 
 if(!orderRes.ok){
 const txt = await orderRes.text();
-alert("SERVER ERROR: " + txt);
-console.error("SERVER ERROR:", txt);
+alert("SERVER ERROR: "+txt);
 return;
 }
 
@@ -305,7 +306,8 @@ alert("Verification failed");
 }).open();
 
 }catch(e){
-alert("Error");
+alert("FINAL ERROR ❌");
+console.error(e);
 }
 }
 
