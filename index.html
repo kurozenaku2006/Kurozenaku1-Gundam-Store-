@@ -93,32 +93,20 @@ Checkout
 <!-- ORDERS -->
 <div x-show="view==='orders'">
 <h2 class="text-xl mb-4">Orders</h2>
+
+<template x-for="o in orders">
+<div class="bg-white/10 p-3 mb-2 rounded">
+<p>₹<span x-text="o.amount"></span></p>
+<p>Status: <span x-text="o.status"></span></p>
+<p x-text="o.createdAt ? new Date(o.createdAt.seconds*1000).toLocaleString() : ''"></p>
+</div>
+</template>
+
 </div>
 
 <!-- TRACKING -->
 <div x-show="view==='tracking'">
 <h2 class="text-xl mb-4">Tracking</h2>
-</div>
-
-<!-- ADMIN -->
-<div x-show="view==='admin'" class="bg-white/10 p-4 rounded">
-<h2 class="text-xl mb-4">Admin Panel</h2>
-
-<input x-model="name" placeholder="Product Name" class="text-black p-2 w-full mb-2">
-<input x-model="price" placeholder="Price" class="text-black p-2 w-full mb-2">
-
-<select x-model="newCategory" class="text-black p-2 w-full mb-2">
-<option>HG</option>
-<option>MG</option>
-<option>PG</option>
-<option>RG</option>
-<option>EG</option>
-<option>SD</option>
-</select>
-
-<button @click="addProduct()" class="bg-blue-500 px-4 py-2 w-full">
-Add Product
-</button>
 </div>
 
 <!-- MENU OVERLAY -->
@@ -158,11 +146,6 @@ Login with Google
 <button @click="logout()" class="w-full bg-red-500 py-2 rounded mb-2">
 Logout
 </button>
-
-<button x-show="isAdmin" @click="go('admin')"
-class="w-full py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500">
-⚙ Admin
-</button>
 </div>
 
 </div>
@@ -181,16 +164,13 @@ view:'shop',
 products:[],
 cart:[],
 wishlist:[],
+orders:[],
 
 search:'',
 category:'ALL',
 
 user:null,
 isAdmin:false,
-
-name:'',
-price:'',
-newCategory:'HG',
 
 API_URL:"https://kurozenaku-gundam-store.onrender.com",
 
@@ -201,9 +181,10 @@ authDomain:"kurozenaku-gundam-store.firebaseapp.com",
 projectId:"kurozenaku-gundam-store"
 });
 
-firebase.auth().onAuthStateChanged(u=>{
+firebase.auth().onAuthStateChanged(async u=>{
 this.user=u;
 this.isAdmin=u && u.email==="vedantbhalge2006@gmail.com";
+if(u) await this.loadOrders();
 });
 
 firebase.firestore().collection("products").onSnapshot(s=>{
@@ -219,13 +200,13 @@ logout(){
 firebase.auth().signOut();
 },
 
-addProduct(){
-firebase.firestore().collection("products").add({
-name:this.name,
-price:Number(this.price),
-category:this.newCategory,
-image:"https://via.placeholder.com/150"
-});
+async loadOrders(){
+const snapshot = await firebase.firestore()
+.collection("orders")
+.where("userId","==",this.user.uid)
+.get();
+
+this.orders = snapshot.docs.map(d=>d.data());
 },
 
 filteredProducts(){
@@ -255,22 +236,18 @@ this.view=v;
 this.menuOpen=false;
 },
 
-// 🔥 DEBUG CHECKOUT
 async checkout(){
 try{
 
-alert("Step 0: Clicked");
+alert("Step 0");
 
 if(!this.user){ alert("Login first"); return; }
 if(this.cart.length===0){ alert("Cart empty"); return; }
 
 const token = await this.user.getIdToken();
-alert("Step 1: Token OK");
+alert("Step 1");
 
-let orderRes;
-
-try{
-orderRes = await fetch(this.API_URL+"/create-order",{
+const orderRes = await fetch(this.API_URL+"/create-order",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
@@ -281,21 +258,18 @@ amount:this.total(),
 items:this.cart
 })
 });
-alert("Step 2: Request sent");
-}catch(err){
-alert("FETCH FAILED ❌");
-return;
-}
+
+alert("Step 2");
 
 if(!orderRes.ok){
-const txt = await orderRes.text();
-alert("SERVER ERROR ❌: "+txt);
+alert("Server error");
 return;
 }
 
-alert("Step 3: Order created");
-
 const order = await orderRes.json();
+alert("Step 3");
+
+const self = this;
 
 new Razorpay({
 key:"rzp_test_SenYF5dCaOG8Ab",
@@ -303,13 +277,33 @@ amount:order.amount,
 currency:"INR",
 order_id:order.id,
 
-handler:function(){
+handler: async function(response){
+alert("Step 4");
+
+const verifyRes = await fetch(self.API_URL+"/verify",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+body:JSON.stringify(response)
+});
+
+const result = await verifyRes.json();
+
+if(result.success){
 alert("Payment success");
+self.cart=[];
+await self.loadOrders();
+}else{
+alert("Verification failed");
 }
+}
+
 }).open();
 
 }catch(e){
-alert("FINAL ERROR ❌");
+alert("Error");
 }
 }
 
