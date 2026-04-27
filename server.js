@@ -8,24 +8,19 @@ const admin = require("firebase-admin");
 const app = express();
 app.use(express.json());
 
-/* ==============================
-   ✅ FINAL CORS FIX
-   ============================== */
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  methods: ["GET","POST"],
+  allowedHeaders: ["Content-Type","Authorization"]
 }));
 
-/* ==============================
-   🔥 FIREBASE ADMIN (ENV BASED)
-   ============================== */
+// 🔥 FIREBASE ADMIN
 let serviceAccount;
 
 try {
   serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
 } catch (e) {
-  console.error("❌ FIREBASE_KEY missing or invalid");
+  console.error("FIREBASE_KEY ERROR");
   process.exit(1);
 }
 
@@ -35,58 +30,46 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-/* ==============================
-   🔐 AUTH MIDDLEWARE
-   ============================== */
-async function verifyToken(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
+// 🔐 VERIFY TOKEN
+async function verifyToken(req,res,next){
+  try{
+    const auth = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if(!auth || !auth.startsWith("Bearer "))
       return res.status(401).send("Unauthorized");
-    }
 
-    const token = authHeader.split("Bearer ")[1];
+    const token = auth.split("Bearer ")[1];
     const decoded = await admin.auth().verifyIdToken(token);
 
     req.user = decoded;
     next();
-  } catch (err) {
-    console.error("Auth Error:", err);
+
+  }catch(e){
     res.status(401).send("Invalid token");
   }
 }
 
-/* ==============================
-   💳 RAZORPAY SETUP
-   ============================== */
+// 💳 RAZORPAY
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-/* ==============================
-   🧾 CREATE ORDER
-   ============================== */
-app.post("/create-order", verifyToken, async (req, res) => {
-  try {
+// 🧾 CREATE ORDER
+app.post("/create-order", verifyToken, async (req,res)=>{
+  try{
+
     const { amount, items } = req.body;
 
-    if (!amount || !items) {
-      return res.status(400).send("Missing data");
-    }
-
-    const options = {
-      amount: amount * 100, // ₹ → paise
+    const order = await razorpay.orders.create({
+      amount: amount * 100,
       currency: "INR",
-      receipt: "receipt_" + Date.now(),
-    };
+      receipt: "rcpt_" + Date.now()
+    });
 
-    const order = await razorpay.orders.create(options);
-
-    // Save order in Firestore
     await db.collection("orders").doc(order.id).set({
       userId: req.user.uid,
+      email: req.user.email,
       items,
       amount,
       status: "CREATED",
@@ -95,62 +78,68 @@ app.post("/create-order", verifyToken, async (req, res) => {
 
     res.json(order);
 
-  } catch (err) {
-    console.error("Create Order Error:", err);
-    res.status(500).send("Error creating order");
+  }catch(e){
+    console.error(e);
+    res.status(500).send("Create order failed");
   }
 });
 
-/* ==============================
-   ✅ VERIFY PAYMENT
-   ============================== */
-app.post("/verify", verifyToken, async (req, res) => {
-  try {
+// ✅ VERIFY PAYMENT
+app.post("/verify", verifyToken, async (req,res)=>{
+  try{
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).send("Missing payment data");
-    }
-
     const expected = crypto
       .createHmac("sha256", process.env.RAZORPAY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
       .digest("hex");
 
-    if (expected !== razorpay_signature) {
+    if(expected !== razorpay_signature){
       return res.status(400).send("Invalid signature");
     }
 
-    // Update order in Firestore
     await db.collection("orders").doc(razorpay_order_id).update({
       status: "PAID",
       paymentId: razorpay_payment_id,
       paidAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    res.json({ success: true });
+    res.json({ success:true });
 
-  } catch (err) {
-    console.error("Verification Error:", err);
-    res.status(500).send("Verification failed");
+  }catch(e){
+    res.status(500).send("Verify failed");
   }
 });
 
-/* ==============================
-   🧪 HEALTH CHECK
-   ============================== */
-app.get("/", (req, res) => {
-  res.send("Backend running");
+// 🔥 ADMIN: GET ALL ORDERS
+app.get("/admin/orders", verifyToken, async (req,res)=>{
+  try{
+
+    if(req.user.email !== "vedantbhalge2006@gmail.com"){
+      return res.status(403).send("Not admin");
+    }
+
+    const snap = await db.collection("orders")
+      .orderBy("createdAt","desc")
+      .get();
+
+    const data = snap.docs.map(d => ({
+      id:d.id,
+      ...d.data()
+    }));
+
+    res.json(data);
+
+  }catch(e){
+    res.status(500).send("Admin fetch failed");
+  }
 });
 
-/* ==============================
-   🚀 START SERVER
-   ============================== */
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log("✅ Server running on port", PORT);
-});
+app.get("/", (req,res)=> res.send("Backend running"));
+
+app.listen(process.env.PORT || 5000);
