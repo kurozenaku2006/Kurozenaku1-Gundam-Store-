@@ -25,25 +25,9 @@
 <button @click="menuOpen=true" class="bg-white/10 px-3 py-2 rounded">☰ Menu</button>
 </div>
 
-<!-- SEARCH + FILTER -->
+<!-- SEARCH -->
 <div class="flex gap-2 mb-4">
-<button @click="filterOpen=true" class="bg-white/10 px-3 rounded">☰</button>
 <input x-model="search" placeholder="Search Gundam kits..." class="flex-1 p-2 text-black rounded"/>
-</div>
-
-<!-- FILTER DRAWER -->
-<div x-show="filterOpen"
-class="fixed top-0 left-0 h-full w-60 bg-gray-900 z-50 p-4">
-<h2 class="mb-4 text-lg font-semibold">Category</h2>
-
-<template x-for="c in ['ALL','HG','MG','PG','EG','RG','SD']">
-<button @click="category=c; filterOpen=false"
-class="block w-full text-left mb-2 bg-white/10 px-3 py-2 rounded hover:bg-white/20"
-x-text="c"></button>
-</template>
-
-<button @click="filterOpen=false"
-class="mt-4 w-full bg-red-500 py-2 rounded">Close</button>
 </div>
 
 <!-- PRODUCTS -->
@@ -55,7 +39,6 @@ class="mt-4 w-full bg-red-500 py-2 rounded">Close</button>
 <p>₹<span x-text="p.price"></span></p>
 
 <button @click="addToCart(p)" class="bg-yellow-400 text-black w-full mt-2 py-1">Cart</button>
-<button @click="toggleWish(p)" class="w-full mt-1">❤️</button>
 </div>
 </template>
 </div>
@@ -94,38 +77,25 @@ Checkout
 </template>
 </div>
 
-<!-- MENU -->
-<div x-show="menuOpen" @click="menuOpen=false"
-class="fixed inset-0 bg-black/60 z-40"></div>
+<!-- ADMIN -->
+<div x-show="view==='admin'" class="bg-white/10 p-4 rounded">
 
-<div x-show="menuOpen"
-class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-950 z-50 p-5">
+<h2 class="text-xl mb-4">Admin Panel</h2>
 
-<div class="flex justify-between mb-4">
-<button @click="menuOpen=false" class="bg-white/10 px-3 py-1 rounded">✕</button>
-<h2>Menu</h2>
+<div class="mb-4">
+<h3>Total Revenue</h3>
+<p class="text-2xl font-bold">₹<span x-text="revenue"></span></p>
 </div>
 
-<button @click="go('shop')" class="w-full mb-2 bg-white/10 py-2 rounded">🛍 Shop</button>
-<button @click="go('cart')" class="w-full mb-2 bg-white/10 py-2 rounded">🛒 Cart</button>
-<button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
-
-<div class="mt-6 border-t border-white/20 pt-4">
-
-<div x-show="!user">
-<button @click="login()" class="w-full bg-blue-500 py-2 rounded mb-2">
-Login with Google
-</button>
+<template x-for="o in adminOrders">
+<div class="bg-black/30 p-3 mb-2 rounded">
+<p>ID: <span x-text="o.id"></span></p>
+<p>₹<span x-text="o.amount"></span></p>
+<p>Status: <span x-text="o.status"></span></p>
+<p>User: <span x-text="o.email"></span></p>
 </div>
+</template>
 
-<div x-show="user">
-<p class="text-sm mb-2" x-text="user.email"></p>
-<button @click="logout()" class="w-full bg-red-500 py-2 rounded mb-2">
-Logout
-</button>
-</div>
-
-</div>
 </div>
 
 </div>
@@ -134,35 +104,32 @@ Logout
 document.addEventListener('alpine:init', () => {
 Alpine.data('app', () => ({
 
-menuOpen:false,
-filterOpen:false,
 view:'shop',
-
 products:[],
 cart:[],
-wishlist:[],
 orders:[],
+adminOrders:[],
+revenue:0,
 
 search:'',
-category:'ALL',
-
 user:null,
 
 API_URL:"https://kurozenaku-gundam-store.onrender.com",
 
 init(){
 firebase.initializeApp({
-apiKey:"AIzaSyByLURDPjEbLepc3Wz3O1MAYYLXSeu04Zg",
-authDomain:"kurozenaku-gundam-store.firebaseapp.com",
-projectId:"kurozenaku-gundam-store"
+apiKey:"YOUR_KEY",
+authDomain:"YOUR_DOMAIN",
+projectId:"YOUR_ID"
 });
 
-// 🔥 Wake backend
 fetch(this.API_URL).catch(()=>{});
 
 firebase.auth().onAuthStateChanged(async u=>{
 this.user=u;
-if(u) await this.loadOrders();
+if(u){
+await this.loadOrders();
+}
 });
 
 firebase.firestore().collection("products").onSnapshot(s=>{
@@ -174,13 +141,7 @@ login(){
 firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
 },
 
-logout(){
-firebase.auth().signOut();
-},
-
 async loadOrders(){
-if(!this.user) return;
-
 const snap = await firebase.firestore()
 .collection("orders")
 .where("userId","==",this.user.uid)
@@ -189,10 +150,25 @@ const snap = await firebase.firestore()
 this.orders = snap.docs.map(d=>d.data());
 },
 
+async loadAdmin(){
+const token = await firebase.auth().currentUser.getIdToken();
+
+const res = await fetch(this.API_URL+"/admin/orders",{
+headers:{ "Authorization":"Bearer "+token }
+});
+
+const data = await res.json();
+
+this.adminOrders = data;
+
+this.revenue = data
+.filter(o=>o.status==="PAID")
+.reduce((s,o)=>s+o.amount,0);
+},
+
 filteredProducts(){
 return this.products.filter(p=>
-(p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
-(this.category==='ALL'||p.category===this.category)
+(p.name||'').toLowerCase().includes(this.search.toLowerCase())
 );
 },
 
@@ -205,40 +181,18 @@ total(){
 return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
 },
 
-toggleWish(p){
-let w=this.wishlist.find(x=>x.id===p.id);
-if(w)this.wishlist=this.wishlist.filter(x=>x.id!==p.id);
-else this.wishlist.push(p);
-},
-
 go(v){
 this.view=v;
-this.menuOpen=false;
+if(v==="admin") this.loadAdmin();
 },
 
-// ✅ FIXED CHECKOUT
 async checkout(){
-try{
-
-alert("Step 0");
 
 if(!this.user){ alert("Login first"); return; }
-if(this.cart.length===0){ alert("Cart empty"); return; }
 
-const currentUser = firebase.auth().currentUser;
+const token = await firebase.auth().currentUser.getIdToken(true);
 
-if(!currentUser){
-alert("User not ready ❌");
-return;
-}
-
-const token = await currentUser.getIdToken(true);
-alert("Step 1");
-
-let orderRes;
-
-try{
-orderRes = await fetch(this.API_URL+"/create-order",{
+const orderRes = await fetch(this.API_URL+"/create-order",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
@@ -249,23 +203,10 @@ amount:this.total(),
 items:this.cart
 })
 });
-alert("Step 2");
-}catch(err){
-alert("❌ BACKEND NOT REACHABLE");
-console.error(err);
-return;
-}
-
-if(!orderRes.ok){
-const txt = await orderRes.text();
-alert("SERVER ERROR: "+txt);
-return;
-}
 
 const order = await orderRes.json();
-alert("Step 3");
 
-const self = this;
+const self=this;
 
 new Razorpay({
 key:"rzp_test_SiYEspp96mmcT5",
@@ -273,36 +214,28 @@ amount:order.amount,
 currency:"INR",
 order_id:order.id,
 
-handler: async function(response){
+handler: async function(res){
 
-alert("Step 4");
-
-const verifyRes = await fetch(self.API_URL+"/verify",{
+const verify = await fetch(self.API_URL+"/verify",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
 "Authorization":"Bearer "+token
 },
-body:JSON.stringify(response)
+body:JSON.stringify(res)
 });
 
-const result = await verifyRes.json();
+const result = await verify.json();
 
 if(result.success){
-alert("✅ Payment success");
+alert("Payment success");
 self.cart=[];
-await self.loadOrders();
-}else{
-alert("❌ Verification failed");
+self.loadOrders();
 }
 }
 
 }).open();
 
-}catch(e){
-alert("FINAL ERROR ❌");
-console.error(e);
-}
 }
 
 }))
