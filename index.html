@@ -262,7 +262,9 @@ items:this.cart
 alert("Step 2");
 
 if(!orderRes.ok){
-alert("Server error");
+const txt = await orderRes.text();
+alert("SERVER ERROR: " + txt);
+console.error("SERVER ERROR:", txt);
 return;
 }
 
