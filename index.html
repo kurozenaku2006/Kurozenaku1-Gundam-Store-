@@ -34,7 +34,6 @@
 <!-- FILTER DRAWER -->
 <div x-show="filterOpen"
 class="fixed top-0 left-0 h-full w-60 bg-gray-900 z-50 p-4">
-
 <h2 class="mb-4 text-lg font-semibold">Category</h2>
 
 <template x-for="c in ['ALL','HG','MG','PG','EG','RG','SD']">
@@ -44,9 +43,7 @@ x-text="c"></button>
 </template>
 
 <button @click="filterOpen=false"
-class="mt-4 w-full bg-red-500 py-2 rounded">
-Close
-</button>
+class="mt-4 w-full bg-red-500 py-2 rounded">Close</button>
 </div>
 
 <!-- PRODUCTS -->
@@ -85,11 +82,6 @@ Checkout
 </button>
 </div>
 
-<!-- WISHLIST -->
-<div x-show="view==='wishlist'">
-<h2 class="text-xl mb-4">Wishlist</h2>
-</div>
-
 <!-- ORDERS -->
 <div x-show="view==='orders'">
 <h2 class="text-xl mb-4">Orders</h2>
@@ -98,22 +90,14 @@ Checkout
 <div class="bg-white/10 p-3 mb-2 rounded">
 <p>₹<span x-text="o.amount"></span></p>
 <p>Status: <span x-text="o.status"></span></p>
-<p x-text="o.createdAt ? new Date(o.createdAt.seconds*1000).toLocaleString() : ''"></p>
 </div>
 </template>
-
 </div>
 
-<!-- TRACKING -->
-<div x-show="view==='tracking'">
-<h2 class="text-xl mb-4">Tracking</h2>
-</div>
-
-<!-- MENU OVERLAY -->
+<!-- MENU -->
 <div x-show="menuOpen" @click="menuOpen=false"
 class="fixed inset-0 bg-black/60 z-40"></div>
 
-<!-- MENU DRAWER -->
 <div x-show="menuOpen"
 class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-950 z-50 p-5">
 
@@ -123,10 +107,8 @@ class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-gray-900 to-blue-95
 </div>
 
 <button @click="go('shop')" class="w-full mb-2 bg-white/10 py-2 rounded">🛍 Shop</button>
-<button @click="go('cart')" class="w-full mb-2 bg-white/10 py-2 rounded">🛒 Cart (<span x-text="cart.length"></span>)</button>
-<button @click="go('wishlist')" class="w-full mb-2 bg-white/10 py-2 rounded">❤️ Wishlist</button>
+<button @click="go('cart')" class="w-full mb-2 bg-white/10 py-2 rounded">🛒 Cart</button>
 <button @click="go('orders')" class="w-full mb-2 bg-white/10 py-2 rounded">📦 Orders</button>
-<button @click="go('tracking')" class="w-full mb-2 bg-white/10 py-2 rounded">🚚 Tracking</button>
 
 <div class="mt-6 border-t border-white/20 pt-4">
 
@@ -175,6 +157,9 @@ authDomain:"kurozenaku-gundam-store.firebaseapp.com",
 projectId:"kurozenaku-gundam-store"
 });
 
+// 🔥 Wake backend
+fetch(this.API_URL).catch(()=>{});
+
 firebase.auth().onAuthStateChanged(async u=>{
 this.user=u;
 if(u) await this.loadOrders();
@@ -196,12 +181,12 @@ firebase.auth().signOut();
 async loadOrders(){
 if(!this.user) return;
 
-const snapshot = await firebase.firestore()
+const snap = await firebase.firestore()
 .collection("orders")
 .where("userId","==",this.user.uid)
 .get();
 
-this.orders = snapshot.docs.map(d=>d.data());
+this.orders = snap.docs.map(d=>d.data());
 },
 
 filteredProducts(){
@@ -231,6 +216,7 @@ this.view=v;
 this.menuOpen=false;
 },
 
+// ✅ FIXED CHECKOUT
 async checkout(){
 try{
 
@@ -239,7 +225,14 @@ alert("Step 0");
 if(!this.user){ alert("Login first"); return; }
 if(this.cart.length===0){ alert("Cart empty"); return; }
 
-const token = await this.user.getIdToken();
+const currentUser = firebase.auth().currentUser;
+
+if(!currentUser){
+alert("User not ready ❌");
+return;
+}
+
+const token = await currentUser.getIdToken(true);
 alert("Step 1");
 
 let orderRes;
@@ -258,7 +251,7 @@ items:this.cart
 });
 alert("Step 2");
 }catch(err){
-alert("BACKEND NOT REACHABLE ❌");
+alert("❌ BACKEND NOT REACHABLE");
 console.error(err);
 return;
 }
@@ -281,6 +274,7 @@ currency:"INR",
 order_id:order.id,
 
 handler: async function(response){
+
 alert("Step 4");
 
 const verifyRes = await fetch(self.API_URL+"/verify",{
@@ -295,11 +289,11 @@ body:JSON.stringify(response)
 const result = await verifyRes.json();
 
 if(result.success){
-alert("Payment success");
+alert("✅ Payment success");
 self.cart=[];
 await self.loadOrders();
 }else{
-alert("Verification failed");
+alert("❌ Verification failed");
 }
 }
 
