@@ -25,9 +25,20 @@
 <button @click="menuOpen=true" class="bg-white/10 px-3 py-2 rounded">☰ Menu</button>
 </div>
 
-<!-- SEARCH -->
+<!-- SEARCH + FILTER -->
 <div class="flex gap-2 mb-4">
-<input x-model="search" placeholder="Search Gundam kits..." class="flex-1 p-2 text-black rounded"/>
+<button @click="filterOpen=true" class="bg-white/10 px-3 rounded">☰</button>
+<input x-model="search" class="flex-1 p-2 text-black rounded"/>
+</div>
+
+<!-- FILTER DRAWER -->
+<div x-show="filterOpen" class="fixed top-0 left-0 h-full w-60 bg-gray-900 z-50 p-4">
+<template x-for="c in ['ALL','HG','MG','PG','EG','RG','SD']">
+<button @click="category=c; filterOpen=false"
+class="block w-full mb-2 bg-white/10 px-3 py-2 rounded"
+x-text="c"></button>
+</template>
+<button @click="filterOpen=false" class="bg-red-500 w-full py-2">Close</button>
 </div>
 
 <!-- PRODUCTS -->
@@ -38,7 +49,7 @@
 <h2 x-text="p.name"></h2>
 <p>₹<span x-text="p.price"></span></p>
 
-<button @click="addToCart(p)" class="bg-yellow-400 text-black w-full mt-2 py-1">Cart</button>
+<button @click="addToCart(p)" class="bg-yellow-400 w-full mt-2 py-1 text-black">Cart</button>
 </div>
 </template>
 </div>
@@ -60,21 +71,9 @@
 
 <p>Total: ₹<span x-text="total()"></span></p>
 
-<button @click="checkout()" class="bg-green-500 w-full mt-4 py-2 rounded">
+<button @click="checkout()" class="bg-green-500 w-full mt-4 py-2">
 Checkout
 </button>
-</div>
-
-<!-- ORDERS -->
-<div x-show="view==='orders'">
-<h2 class="text-xl mb-4">Orders</h2>
-
-<template x-for="o in orders">
-<div class="bg-white/10 p-3 mb-2 rounded">
-<p>₹<span x-text="o.amount"></span></p>
-<p>Status: <span x-text="o.status"></span></p>
-</div>
-</template>
 </div>
 
 <!-- ADMIN -->
@@ -82,19 +81,32 @@ Checkout
 
 <h2 class="text-xl mb-4">Admin Panel</h2>
 
-<div class="mb-4">
-<h3>Total Revenue</h3>
-<p class="text-2xl font-bold">₹<span x-text="revenue"></span></p>
-</div>
+<p>Total Revenue: ₹<span x-text="revenue"></span></p>
 
 <template x-for="o in adminOrders">
-<div class="bg-black/30 p-3 mb-2 rounded">
+<div class="bg-black/30 p-3 mt-2 rounded">
 <p>ID: <span x-text="o.id"></span></p>
 <p>₹<span x-text="o.amount"></span></p>
-<p>Status: <span x-text="o.status"></span></p>
-<p>User: <span x-text="o.email"></span></p>
+<p x-text="o.status"></p>
 </div>
 </template>
+
+</div>
+
+<!-- MENU -->
+<div x-show="menuOpen" @click="menuOpen=false"
+class="fixed inset-0 bg-black/60 z-40"></div>
+
+<div x-show="menuOpen"
+class="fixed right-0 top-0 h-full w-72 bg-gray-900 z-50 p-5">
+
+<button @click="go('shop')">Shop</button>
+<button @click="go('cart')">Cart</button>
+<button @click="go('admin')">Admin</button>
+
+<button @click="login()" class="mt-4 bg-blue-500 w-full py-2">
+Login
+</button>
 
 </div>
 
@@ -104,14 +116,17 @@ Checkout
 document.addEventListener('alpine:init', () => {
 Alpine.data('app', () => ({
 
+menuOpen:false,
+filterOpen:false,
 view:'shop',
+
 products:[],
 cart:[],
-orders:[],
 adminOrders:[],
 revenue:0,
 
 search:'',
+category:'ALL',
 user:null,
 
 API_URL:"https://kurozenaku-gundam-store.onrender.com",
@@ -123,14 +138,7 @@ authDomain:"YOUR_DOMAIN",
 projectId:"YOUR_ID"
 });
 
-fetch(this.API_URL).catch(()=>{});
-
-firebase.auth().onAuthStateChanged(async u=>{
-this.user=u;
-if(u){
-await this.loadOrders();
-}
-});
+firebase.auth().onAuthStateChanged(u=>this.user=u);
 
 firebase.firestore().collection("products").onSnapshot(s=>{
 this.products=s.docs.map(d=>({id:d.id,...d.data()}));
@@ -141,34 +149,17 @@ login(){
 firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
 },
 
-async loadOrders(){
-const snap = await firebase.firestore()
-.collection("orders")
-.where("userId","==",this.user.uid)
-.get();
+go(v){
+this.view=v;
+this.menuOpen=false;
 
-this.orders = snap.docs.map(d=>d.data());
-},
-
-async loadAdmin(){
-const token = await firebase.auth().currentUser.getIdToken();
-
-const res = await fetch(this.API_URL+"/admin/orders",{
-headers:{ "Authorization":"Bearer "+token }
-});
-
-const data = await res.json();
-
-this.adminOrders = data;
-
-this.revenue = data
-.filter(o=>o.status==="PAID")
-.reduce((s,o)=>s+o.amount,0);
+if(v==="admin") this.loadAdmin();
 },
 
 filteredProducts(){
 return this.products.filter(p=>
-(p.name||'').toLowerCase().includes(this.search.toLowerCase())
+(p.name||'').toLowerCase().includes(this.search.toLowerCase()) &&
+(this.category==='ALL'||p.category===this.category)
 );
 },
 
@@ -181,9 +172,20 @@ total(){
 return this.cart.reduce((t,i)=>t+i.price*i.qty,0);
 },
 
-go(v){
-this.view=v;
-if(v==="admin") this.loadAdmin();
+async loadAdmin(){
+const token = await firebase.auth().currentUser.getIdToken();
+
+const res = await fetch(this.API_URL+"/admin/orders",{
+headers:{Authorization:"Bearer "+token}
+});
+
+const data = await res.json();
+
+this.adminOrders=data;
+
+this.revenue=data
+.filter(o=>o.status==="PAID")
+.reduce((s,o)=>s+o.amount,0);
 },
 
 async checkout(){
@@ -230,7 +232,6 @@ const result = await verify.json();
 if(result.success){
 alert("Payment success");
 self.cart=[];
-self.loadOrders();
 }
 }
 
